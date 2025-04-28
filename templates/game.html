@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battleship - Game in Progress</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/game.css') }}">
+</head>
+<body {% if multiplayer %}data-multiplayer="true" data-player-number="{{ player_number }}" data-game-id="{{ game_id }}"{% endif %}>
+    <h1>Battleship{% if multiplayer %} - Multiplayer{% endif %}</h1>
+
+    <div id="game-status">
+        <p id="status-message">{% if multiplayer %}Waiting for game state...{% else %}Your turn - select a target to fire upon{% endif %}</p>
+        <p id="player-stats">{% if multiplayer %}{% if player_number == 1 %}You are Player 1{% else %}You are Player 2{% endif %}{% else %}Ships remaining: 5{% endif %}</p>
+        <p id="opponent-stats">{% if multiplayer %}Waiting for opponent...{% else %}Enemy ships remaining: 5{% endif %}</p>
+    </div>
+
+    <div class="game-container">
+        <!-- Player's grid (where ships are placed and enemy fires) -->
+        <div class="grid-container">
+            <h2>Your Sea</h2>
+            <div class="grid-with-labels">
+                <!-- Column labels (A-J) -->
+                <div class="column-labels">
+                    <div class="corner-spacer"></div>
+                    <div class="col-label">A</div>
+                    <div class="col-label">B</div>
+                    <div class="col-label">C</div>
+                    <div class="col-label">D</div>
+                    <div class="col-label">E</div>
+                    <div class="col-label">F</div>
+                    <div class="col-label">G</div>
+                    <div class="col-label">H</div>
+                    <div class="col-label">I</div>
+                    <div class="col-label">J</div>
+                </div>
+
+                <div class="grid-with-row-labels">
+                    <!-- Row labels (1-10) -->
+                    <div class="row-labels">
+                        <div class="row-label">1</div>
+                        <div class="row-label">2</div>
+                        <div class="row-label">3</div>
+                        <div class="row-label">4</div>
+                        <div class="row-label">5</div>
+                        <div class="row-label">6</div>
+                        <div class="row-label">7</div>
+                        <div class="row-label">8</div>
+                        <div class="row-label">9</div>
+                        <div class="row-label">10</div>
+                    </div>
+
+                    <!-- The actual grid -->
+                    <table id="player-grid" class="grid"></table>
+                </div>
+            </div>
+
+            <div class="grid-legend">
+                <div class="legend-item">
+                    <div class="legend-color ship-color"></div>
+                    <span>Your Ship</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color hit-color"></div>
+                    <span>Hit</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color miss-color"></div>
+                    <span>Miss</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color sunk-color"></div>
+                    <span>Sunk</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enemy's grid (where player fires) -->
+        <div class="grid-container">
+            <h2>{% if multiplayer %}Opponent's Sea{% else %}Enemy Sea{% endif %}</h2>
+            <div class="grid-with-labels">
+                <!-- Column labels (A-J) -->
+                <div class="column-labels">
+                    <div class="corner-spacer"></div>
+                    <div class="col-label">A</div>
+                    <div class="col-label">B</div>
+                    <div class="col-label">C</div>
+                    <div class="col-label">D</div>
+                    <div class="col-label">E</div>
+                    <div class="col-label">F</div>
+                    <div class="col-label">G</div>
+                    <div class="col-label">H</div>
+                    <div class="col-label">I</div>
+                    <div class="col-label">J</div>
+                </div>
+
+                <div class="grid-with-row-labels">
+                    <!-- Row labels (1-10) -->
+                    <div class="row-labels">
+                        <div class="row-label">1</div>
+                        <div class="row-label">2</div>
+                        <div class="row-label">3</div>
+                        <div class="row-label">4</div>
+                        <div class="row-label">5</div>
+                        <div class="row-label">6</div>
+                        <div class="row-label">7</div>
+                        <div class="row-label">8</div>
+                        <div class="row-label">9</div>
+                        <div class="row-label">10</div>
+                    </div>
+
+                    <!-- The actual grid -->
+                    <table id="enemy-grid" class="grid"></table>
+                </div>
+            </div>
+
+            <div class="grid-legend">
+                <div class="legend-item">
+                    <div class="legend-color hit-color"></div>
+                    <span>Hit</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color miss-color"></div>
+                    <span>Miss</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color sunk-color"></div>
+                    <span>Sunk</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ship-legend">
+        <h3>Ship Types</h3>
+        <div class="ship-legend-items">
+            <div class="legend-item">
+                <div class="legend-color carrier-color"></div>
+                <span>Carrier (5 spaces)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color battleship-color"></div>
+                <span>Battleship (4 spaces)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color cruiser-color"></div>
+                <span>Cruiser (3 spaces)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color submarine-color"></div>
+                <span>Submarine (3 spaces)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color destroyer-color"></div>
+                <span>Destroyer (2 spaces)</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-log">
+        <h3>Battle Log</h3>
+        <div id="log-container"></div>
+    </div>
+
+    <div id="game-controls">
+        <button id="new-game-btn">Back to Menu</button>
+    </div>
+
+    <!-- Game over modal -->
+    <div id="game-over-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="game-result"></h2>
+            <p id="game-stats"></p>
+            <button id="play-again-btn">Play Again</button>
+        </div>
+    </div>
+
+    <!-- Load game logic -->
+    <script src="{{ url_for('static', filename='js/game.js') }}"></script>
+</body>
+</html>
