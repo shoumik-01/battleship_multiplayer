@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battleship - Setup Phase</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body {% if multiplayer %}data-multiplayer="true" data-player-number="{{ player_number }}" data-game-id="{{ game_id }}"{% endif %}>
+    <h1>Battleship: Place Your Ships</h1>
+    <div id="timer">5:00</div>
+
+    {% if multiplayer %}
+    <div class="multiplayer-info">
+        <p>You are Player {{ player_number }} | Game ID: {{ game_id }}</p>
+    </div>
+    {% endif %}
+
+    <div class="game-container">
+        <!-- Ship selection area with rotate buttons -->
+        <div class="ships-container">
+            <h2>Ships</h2>
+            <div id="ships">
+                <div class="ship-wrapper">
+                    <button class="rotate-btn" data-target="carrier">Rotate</button>
+                    <div class="ship carrier" draggable="true" id="carrier" data-size="5" data-orientation="horizontal">Ca</div>
+                </div>
+                <div class="ship-wrapper">
+                    <button class="rotate-btn" data-target="battleship">Rotate</button>
+                    <div class="ship battleship" draggable="true" id="battleship" data-size="4" data-orientation="horizontal">B</div>
+                </div>
+                <div class="ship-wrapper">
+                    <button class="rotate-btn" data-target="cruiser">Rotate</button>
+                    <div class="ship cruiser" draggable="true" id="cruiser" data-size="3" data-orientation="horizontal">Cr</div>
+                </div>
+                <div class="ship-wrapper">
+                    <button class="rotate-btn" data-target="submarine">Rotate</button>
+                    <div class="ship submarine" draggable="true" id="submarine" data-size="3" data-orientation="horizontal">S</div>
+                </div>
+                <div class="ship-wrapper">
+                    <button class="rotate-btn" data-target="destroyer">Rotate</button>
+                    <div class="ship destroyer" draggable="true" id="destroyer" data-size="2" data-orientation="horizontal">D</div>
+                </div>
+            </div>
+
+            <div class="ship-legend">
+                <h3>Ship Legend</h3>
+                <div class="legend-item">
+                    <div class="legend-color carrier-color"></div>
+                    <span>Carrier (5)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color battleship-color"></div>
+                    <span>Battleship (4)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color cruiser-color"></div>
+                    <span>Cruiser (3)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color submarine-color"></div>
+                    <span>Submarine (3)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color destroyer-color"></div>
+                    <span>Destroyer (2)</span>
+                </div>
+            </div>
+
+            <div class="instructions">
+                <h3>Instructions:</h3>
+                <ul>
+                    <li>Drag ships to the grid</li>
+                    <li>Use rotate buttons to change orientation</li>
+                    <li>You can reposition ships after placing</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Grid container -->
+        <div class="grid-container">
+            <h2>Your Ocean Grid</h2>
+            <div class="grid-with-labels">
+                <!-- Column labels (A-J) -->
+                <div class="column-labels">
+                    <div class="corner-spacer"></div>
+                    <div class="col-label">A</div>
+                    <div class="col-label">B</div>
+                    <div class="col-label">C</div>
+                    <div class="col-label">D</div>
+                    <div class="col-label">E</div>
+                    <div class="col-label">F</div>
+                    <div class="col-label">G</div>
+                    <div class="col-label">H</div>
+                    <div class="col-label">I</div>
+                    <div class="col-label">J</div>
+                </div>
+
+                <div class="grid-with-row-labels">
+                    <!-- Row labels (1-10) -->
+                    <div class="row-labels">
+                        <div class="row-label">1</div>
+                        <div class="row-label">2</div>
+                        <div class="row-label">3</div>
+                        <div class="row-label">4</div>
+                        <div class="row-label">5</div>
+                        <div class="row-label">6</div>
+                        <div class="row-label">7</div>
+                        <div class="row-label">8</div>
+                        <div class="row-label">9</div>
+                        <div class="row-label">10</div>
+                    </div>
+
+                    <!-- The actual grid -->
+                    <table id="player-grid"></table>
+                </div>
+            </div>
+
+            <!-- Confirm setup button - moved below the grid -->
+            <button id="confirm-btn">Confirm Setup</button>
+            {% if multiplayer %}
+            <a href="/multiplayer" class="back-button">Cancel</a>
+            {% else %}
+            <a href="/" class="back-button">Cancel</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Load game logic -->
+    <script src="{{ url_for('static', filename='js/setup.js') }}"></script>
+</body>
+</html>
