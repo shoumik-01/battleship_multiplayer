@@ -1,0 +1,509 @@
+/* Improved Battleship game phase styles with coordinate labels */
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f0f8ff;
+}
+
+h1 {
+    color: #00008b;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+h2 {
+    color: #00008b;
+    margin-top: 0;
+    text-align: center;
+}
+
+/* Game status */
+#game-status {
+    max-width: 800px;
+    margin: 0 auto 20px;
+    background-color: #e6f2ff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: background-color 0.3s;
+}
+
+#game-status.my-turn {
+    background-color: #e6ffe6; /* Light green */
+    border-left: 5px solid #008000;
+}
+
+#game-status.opponent-turn {
+    background-color: #ffe6e6; /* Light red */
+    border-left: 5px solid #800000;
+}
+
+#game-status.waiting {
+    background-color: #e6f2ff; /* Light blue */
+    border-left: 5px solid #0000cd;
+}
+
+#game-status.error {
+    background-color: #fff0f0; /* Very light red */
+    border-left: 5px solid #ff0000;
+}
+
+#status-message {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #00008b;
+    margin-bottom: 10px;
+}
+
+#player-stats, #opponent-stats {
+    display: inline-block;
+    margin: 0 15px;
+}
+
+/* Game boards container */
+.game-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 20px auto;
+    max-width: 900px;
+}
+
+/* Grid containers */
+.grid-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Grid with coordinate labels */
+.grid-with-labels {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+/* Fix for column labels using CSS grid for perfect alignment */
+.column-labels {
+    display: grid;
+    grid-template-columns: 20px repeat(10, 40px); /* Corner space + 10 columns */
+    margin-left: 0;
+}
+
+.corner-spacer {
+    width: 20px;
+    height: 20px;
+}
+
+.col-label {
+    width: 40px;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    color: #00008b;
+}
+
+.grid-with-row-labels {
+    display: flex;
+}
+
+.row-labels {
+    display: flex;
+    flex-direction: column;
+    width: 20px;
+}
+
+.row-label {
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    color: #00008b;
+}
+
+/* Grid styling */
+.grid {
+    border-collapse: collapse;
+    background-color: #e6f2ff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.grid td {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #333;
+    text-align: center;
+    vertical-align: middle;
+    font-weight: bold;
+    transition: all 0.2s;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+}
+
+/* Player grid styles */
+#player-grid td.ship {
+    background-color: #808080; /* Grey for ships */
+}
+
+/* Ship colors */
+#player-grid td.carrier { background-color: blue; }
+#player-grid td.battleship { background-color: red; }
+#player-grid td.cruiser { background-color: green; }
+#player-grid td.submarine { background-color: purple; }
+#player-grid td.destroyer { background-color: orange; }
+
+/* Enemy grid hover effect */
+#enemy-grid td:hover {
+    background-color: #b3d9ff;
+    cursor: pointer;
+}
+
+/* Hit and miss markers */
+.grid td.hit {
+    background-color: #ff6666 !important; /* Red for hits */
+    position: relative;
+}
+
+.grid td.hit::before {
+    content: "✖";
+    color: white;
+    font-size: 20px;
+}
+
+.grid td.miss {
+    background-color: #66b3ff !important; /* Blue for misses */
+    position: relative;
+}
+
+.grid td.miss::before {
+    content: "•";
+    color: white;
+    font-size: 24px;
+}
+
+/* Sunk ship styles */
+.grid td.sunk {
+    background-color: #4d4d4d !important; /* Dark grey for sunk ships */
+    position: relative;
+    overflow: hidden;
+}
+
+.grid td.sunk::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(0, 0, 0, 0.1),
+        rgba(0, 0, 0, 0.1) 5px,
+        rgba(0, 0, 0, 0.2) 5px,
+        rgba(0, 0, 0, 0.2) 10px
+    );
+}
+
+#enemy-grid td.hit.sunk::before {
+    content: "✖";
+    color: white;
+    font-size: 20px;
+}
+
+/* Grid legend */
+.grid-legend {
+    display: flex;
+    justify-content: center;
+    margin-top: 10px;
+    gap: 15px;
+}
+
+/* Ship legend */
+.ship-legend {
+    max-width: 800px;
+    margin: 20px auto;
+    background-color: #e6f2ff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.ship-legend h3 {
+    margin-top: 0;
+    color: #00008b;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.ship-legend-items {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin: 0 5px;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    margin-right: 5px;
+    border: 1px solid #333;
+}
+
+.ship-color { background-color: #808080; }
+.hit-color { background-color: #ff6666; }
+.miss-color { background-color: #66b3ff; }
+.sunk-color { background-color: #4d4d4d; }
+
+.carrier-color { background-color: blue; }
+.battleship-color { background-color: red; }
+.cruiser-color { background-color: green; }
+.submarine-color { background-color: purple; }
+.destroyer-color { background-color: orange; }
+
+/* Game log */
+#game-log {
+    max-width: 800px;
+    margin: 20px auto;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    transition: max-height 0.3s;
+}
+
+#game-log h3 {
+    margin-top: 0;
+    color: #00008b;
+    text-align: center;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+}
+
+#log-container {
+    max-height: 150px;
+    overflow-y: auto;
+    font-family: monospace;
+}
+
+.log-entry {
+    margin: 5px 0;
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+    animation: fadeIn 0.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.player-action { color: #006400; }
+.enemy-action { color: #8b0000; }
+.system-message { color: #00008b; font-weight: bold; }
+
+/* Game controls */
+#game-controls {
+    text-align: center;
+    margin: 20px 0;
+}
+
+#new-game-btn, #play-again-btn {
+    background-color: #00008b;
+    color: white;
+    border: none;
+    padding: 10px 30px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+#new-game-btn:hover, #play-again-btn:hover {
+    background-color: #0000cd;
+}
+
+/* Modal styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #f0f8ff;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    max-width: 500px;
+    width: 80%;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Animations */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.hit-animation {
+    animation: pulse 0.5s ease;
+}
+
+/* Processing cell style for shot feedback */
+.processing {
+    animation: pulse 1s infinite;
+    background-color: #f0f0f0 !important;
+}
+
+/* Connection status indicator */
+.connection-status {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+    z-index: 1000;
+}
+
+.connection-status.connected {
+    background-color: #4CAF50; /* Green */
+}
+
+.connection-status.disconnected {
+    background-color: #F44336; /* Red */
+}
+
+.connection-status.connecting {
+    background-color: #FF9800; /* Orange */
+    animation: pulse 1s infinite;
+}
+
+/* Player indicators in multiplayer */
+.player-indicator {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+}
+
+.player-1 {
+    background-color: #4169E1; /* Royal Blue */
+}
+
+.player-2 {
+    background-color: #FF6347; /* Tomato */
+}
+
+/* Enhanced notifications */
+#notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+#notification.show {
+    opacity: 1;
+}
+
+/* Multiplayer waiting modal */
+.waiting-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+}
+
+.waiting-modal-content {
+    background-color: #f0f8ff;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    max-width: 400px;
+    width: 80%;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.waiting-spinner {
+    border: 6px solid #f3f3f3;
+    border-top: 6px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 2s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .game-container {
+        grid-template-columns: 1fr;
+    }
+
+    .grid td {
+        width: 35px;
+        height: 35px;
+    }
+
+    .col-label, .row-label {
+        font-size: 0.9em;
+    }
+
+    .column-labels {
+        grid-template-columns: 20px repeat(10, 35px);
+    }
+
+    .col-label {
+        width: 35px;
+    }
+
+    .row-label {
+        height: 35px;
+    }
+}
