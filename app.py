@@ -6,6 +6,7 @@ import logging
 import json
 import os
 import tempfile
+from datetime import datetime, timedelta
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG,
@@ -14,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = 'battleship_secure_key_2025'  # Use a fixed secret key
+# Add session lifetime configuration (30 minutes)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 
 GRID_SIZE = 10
 SHIP_SIZES = {
@@ -158,6 +161,9 @@ def get_enemy_ships():
 
 @app.route('/reset_game')
 def reset_game():
+    # Get the game_id before clearing the session
+    game_id = session.get('game_id')
+    
     # Clear game data from session
     if 'player_ships' in session:
         del session['player_ships']
@@ -165,8 +171,19 @@ def reset_game():
         del session['enemy_ships']
     if 'game_started' in session:
         del session['game_started']
+    if 'game_id' in session:
+        del session['game_id']
 
-    return redirect(url_for('setup'))
+    # If it was a multiplayer game and it's over, mark it as such
+    if game_id:
+        game = load_game(game_id)
+        if game and game.get('status') != 'game_over':
+            game['status'] = 'abandoned'
+            game['last_activity'] = time.time()
+            save_game(game_id, game)
+            logger.debug(f"Game {game_id} marked as abandoned during reset")
+
+    return redirect(url_for('home'))
 
 # Multiplayer routes
 @app.route('/multiplayer')
@@ -178,12 +195,25 @@ def multiplayer_setup(player_number):
     if player_number not in [1, 2]:
         return redirect(url_for('multiplayer_select'))
 
+    # Make session permanent to use the PERMANENT_SESSION_LIFETIME setting
+    session.permanent = True
+    
     # Store player number as integer in session
     session['player_number'] = player_number
     logger.debug(f"Setting player_number in session to {player_number}")
+    
+    # IMPORTANT: Check if we're coming from a completed game
+    # If the stored game_id is for a 'game_over' state game, clear it to force new game creation
+    game_id = session.get('game_id')
+    if game_id:
+        game = load_game(game_id)
+        if game and game.get('status') == 'game_over':
+            # Clear the game_id since the game is over
+            logger.debug(f"Clearing completed game: {game_id}")
+            session.pop('game_id', None)
+            game_id = None
 
     # Create or join a game
-    game_id = session.get('game_id')
     logger.debug(f"Current game_id in session: {game_id}")
 
     # If no game_id in session or game doesn't exist anymore, create/join one
@@ -238,13 +268,19 @@ def multiplayer_setup(player_number):
 
         if str(player_number) not in game['players']:
             game['players'][str(player_number)] = {'ready': False}
-            save_game(game_id, game)
+            
+        # Always update last_activity when player connects
+        game['last_activity'] = time.time()
+        save_game(game_id, game)
 
     return render_template('setup.html', multiplayer=True, player_number=player_number, game_id=game_id)
 
 @app.route('/multiplayer/submit_ships', methods=['POST'])
 def multiplayer_submit_ships():
     try:
+        # Make session permanent to use the PERMANENT_SESSION_LIFETIME setting
+        session.permanent = True
+        
         data = request.get_json()
         game_id = session.get('game_id')
         # Ensure player_number is always an integer in the session
@@ -306,6 +342,11 @@ def multiplayer_submit_ships():
         if both_ready:
             game['status'] = 'playing'
             game['current_turn'] = 1  # Player 1 goes first
+            # Initialize game stats
+            game['stats'] = {
+                '1': {'shots': 0, 'hits': 0, 'misses': 0},
+                '2': {'shots': 0, 'hits': 0, 'misses': 0}
+            }
             logger.debug(f"Game status changed to playing, current turn: {game['current_turn']}")
 
         # Save the updated game data
@@ -322,6 +363,9 @@ def multiplayer_submit_ships():
 
 @app.route('/multiplayer/game')
 def multiplayer_game():
+    # Make session permanent to use the PERMANENT_SESSION_LIFETIME setting
+    session.permanent = True
+    
     game_id = session.get('game_id')
     player_number = session.get('player_number')
 
@@ -346,6 +390,10 @@ def multiplayer_game():
         logger.debug(f"Game not in playing state, redirecting to setup")
         return redirect(url_for('multiplayer_setup', player_number=player_number))
 
+    # Update last activity timestamp
+    game['last_activity'] = time.time()
+    save_game(game_id, game)
+
     return render_template('game.html',
                           multiplayer=True,
                           player_number=player_number,
@@ -353,6 +401,9 @@ def multiplayer_game():
 
 @app.route('/multiplayer/get_player_ships')
 def multiplayer_get_player_ships():
+    # Make session permanent to use the PERMANENT_SESSION_LIFETIME setting
+    session.permanent = True
+    
     game_id = session.get('game_id')
     player_number = session.get('player_number')
 
@@ -372,10 +423,17 @@ def multiplayer_get_player_ships():
     # Debug log to see which ships are being sent
     logger.debug(f"Sending ships for player {player_number_str}: {game['player_ships'][player_number_str]}")
 
+    # Update last activity timestamp
+    game['last_activity'] = time.time()
+    save_game(game_id, game)
+
     return jsonify({'status': 'success', 'ships': game['player_ships'][player_number_str]})
 
 @app.route('/multiplayer/get_game_state')
 def multiplayer_get_game_state():
+    # Make session permanent to use the PERMANENT_SESSION_LIFETIME setting
+    session.permanent = True
+    
     game_id = session.get('game_id')
     player_number = session.get('player_number')
 
@@ -417,6 +475,16 @@ def multiplayer_get_game_state():
                 game['shots'][player]['hits'] = []
             if 'misses' not in game['shots'][player]:
                 game['shots'][player]['misses'] = []
+                
+    # Ensure game stats structure exists
+    if 'stats' not in game:
+        game['stats'] = {
+            '1': {'shots': 0, 'hits': 0, 'misses': 0},
+            '2': {'shots': 0, 'hits': 0, 'misses': 0}
+        }
+    for player in ['1', '2']:
+        if player not in game['stats']:
+            game['stats'][player] = {'shots': 0, 'hits': 0, 'misses': 0}
 
     # Check for winner
     winner = game.get('winner', None)
@@ -432,7 +500,11 @@ def multiplayer_get_game_state():
         'my_misses': game['shots'][player_number_str]['misses'],
         'opponent_hits': game['shots'][opponent_number_str]['hits'],
         'opponent_misses': game['shots'][opponent_number_str]['misses'],
-        'winner': winner
+        'winner': winner,
+        'stats': {
+            'my_stats': game['stats'][player_number_str],
+            'opponent_stats': game['stats'][opponent_number_str]
+        }
     }
 
     logger.debug(f"Game state for player {player_number}: {response}")
@@ -442,6 +514,9 @@ def multiplayer_get_game_state():
 @app.route('/multiplayer/make_shot', methods=['POST'])
 def multiplayer_make_shot():
     try:
+        # Make session permanent to use the PERMANENT_SESSION_LIFETIME setting
+        session.permanent = True
+        
         game_id = session.get('game_id')
         player_number = session.get('player_number')
         data = request.get_json()
@@ -488,6 +563,15 @@ def multiplayer_make_shot():
             }
         elif player_number_str not in game['shots']:
             game['shots'][player_number_str] = {'hits': [], 'misses': []}
+            
+        # Ensure stats structure exists
+        if 'stats' not in game:
+            game['stats'] = {
+                '1': {'shots': 0, 'hits': 0, 'misses': 0},
+                '2': {'shots': 0, 'hits': 0, 'misses': 0}
+            }
+        elif player_number_str not in game['stats']:
+            game['stats'][player_number_str] = {'shots': 0, 'hits': 0, 'misses': 0}
 
         # Check if shot is valid (not already fired at this location)
         for shot in game['shots'][player_number_str].get('hits', []) + game['shots'][player_number_str].get('misses', []):
@@ -521,6 +605,9 @@ def multiplayer_make_shot():
         if 'misses' not in game['shots'][player_number_str]:
             game['shots'][player_number_str]['misses'] = []
 
+        # Increment total shots count
+        game['stats'][player_number_str]['shots'] = game['stats'][player_number_str].get('shots', 0) + 1
+            
         # Record the shot
         if hit:
             game['shots'][player_number_str]['hits'].append({
@@ -528,12 +615,16 @@ def multiplayer_make_shot():
                 'col': shot_col,
                 'ship_type': hit_ship_type
             })
+            # Increment hits count
+            game['stats'][player_number_str]['hits'] = game['stats'][player_number_str].get('hits', 0) + 1
             logger.debug(f"Hit! Ship type: {hit_ship_type}")
         else:
             game['shots'][player_number_str]['misses'].append({
                 'row': shot_row,
                 'col': shot_col
             })
+            # Increment misses count
+            game['stats'][player_number_str]['misses'] = game['stats'][player_number_str].get('misses', 0) + 1
             logger.debug(f"Miss!")
 
         # Check if ship is sunk
@@ -637,23 +728,43 @@ def debug_games():
             }
     return jsonify(debug_games)
 
-# Clean up inactive games
+# Clean up inactive games - improved version
 def cleanup_inactive_games():
     current_time = time.time()
-    inactive_threshold = 30 * 60  # 30 minutes
+    # Increase inactive threshold to 60 minutes instead of 30
+    inactive_threshold = 60 * 60  # 60 minutes
+    
+    # Keep track of number of games cleaned up
+    cleaned_count = 0
 
     for game_id in list_games():
         game = load_game(game_id)
         if game and (current_time - game['last_activity'] > inactive_threshold):
-            logger.info(f"Cleaning up inactive game: {game_id}")
+            logger.info(f"Cleaning up inactive game: {game_id}, last activity: {datetime.fromtimestamp(game['last_activity']).strftime('%Y-%m-%d %H:%M:%S')}")
             delete_game(game_id)
+            cleaned_count += 1
+            
+    if cleaned_count > 0:
+        logger.info(f"Cleaned up {cleaned_count} inactive games")
 
-# Run cleanup every hour
+# Set a consistent cleanup interval - once per 15 minutes
+last_cleanup_time = 0
+# Set a consistent cleanup interval - once per 15 minutes
+last_cleanup_time = 0
+cleanup_interval = 15 * 60  # 15 minutes
+
 @app.before_request
 def before_request():
-    # Run cleanup every ~100 requests
-    if random.randint(1, 100) == 1:
+    global last_cleanup_time
+    current_time = time.time()
+    
+    # Run cleanup if it's been more than cleanup_interval since last cleanup
+    if current_time - last_cleanup_time > cleanup_interval:
         cleanup_inactive_games()
+        last_cleanup_time = current_time
+        
+    # Always mark session as permanent to use the configured lifetime
+    session.permanent = True
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
