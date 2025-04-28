@@ -32,7 +32,11 @@ let gameState = {
     gameOver: false,
     isMultiplayer: false,
     playerNumber: null,
-    pollingInterval: null
+    pollingInterval: null,
+    stats: {
+        player: { shots: 0, hits: 0, misses: 0 },
+        enemy: { shots: 0, hits: 0, misses: 0 }
+    }
 };
 
 // Initialize the game
@@ -266,7 +270,10 @@ function checkForGameOver() {
 
 // Update game status message
 function updateGameStatus(message) {
-    document.getElementById('status-message').textContent = message;
+    const statusMessage = document.getElementById('status-message');
+    if (statusMessage) {
+        statusMessage.textContent = message;
+    }
 }
 
 // Update ship statistics
@@ -279,13 +286,23 @@ function updateStats() {
     const playerShipsRemaining = Object.keys(SHIP_TYPES).length - gameState.player.sunkShips.length;
     const enemyShipsRemaining = Object.keys(SHIP_TYPES).length - gameState.enemy.sunkShips.length;
 
-    document.getElementById('player-stats').textContent = `Ships remaining: ${playerShipsRemaining}`;
-    document.getElementById('opponent-stats').textContent = `Enemy ships remaining: ${enemyShipsRemaining}`;
+    const playerStats = document.getElementById('player-stats');
+    const opponentStats = document.getElementById('opponent-stats');
+    
+    if (playerStats) {
+        playerStats.textContent = `Ships remaining: ${playerShipsRemaining}`;
+    }
+    
+    if (opponentStats) {
+        opponentStats.textContent = `Enemy ships remaining: ${enemyShipsRemaining}`;
+    }
 }
 
 // Add entry to game log
 function addLogEntry(message, className) {
     const logContainer = document.getElementById('log-container');
+    if (!logContainer) return;
+    
     const entry = document.createElement('div');
 
     entry.className = `log-entry ${className}`;
@@ -306,6 +323,11 @@ function showGameOver(playerWon) {
     const resultElement = document.getElementById('game-result');
     const statsElement = document.getElementById('game-stats');
 
+    if (!modal || !resultElement || !statsElement) {
+        console.error('Game over elements not found');
+        return;
+    }
+
     // Set result message
     if (playerWon) {
         resultElement.textContent = 'Victory! You sunk all enemy ships!';
@@ -317,20 +339,38 @@ function showGameOver(playerWon) {
 
     // Calculate stats
     if (gameState.isMultiplayer) {
-        // For multiplayer games
-        const myHitsCount = gameState.enemy.hits.length;
-        const opponentHitsCount = gameState.player.hits.length;
-        const hitPercentage = Math.round((myHitsCount / (myHitsCount + gameState.enemy.misses.length)) * 100) || 0;
+        // For multiplayer games - use the stats from server if available
+        let myHitsCount = 0;
+        let myMissesCount = 0;
+        let opponentHitsCount = 0;
+        let totalShots = 0;
+        let hitPercentage = 0;
+
+        // If we have stats from the server, use them
+        if (gameState.stats && gameState.stats.player) {
+            myHitsCount = gameState.stats.player.hits || 0;
+            myMissesCount = gameState.stats.player.misses || 0;
+            totalShots = gameState.stats.player.shots || (myHitsCount + myMissesCount);
+            opponentHitsCount = gameState.stats.enemy.hits || 0;
+        } else {
+            // Fallback to counting from gameState
+            myHitsCount = gameState.enemy.hits.length;
+            myMissesCount = gameState.enemy.misses.length;
+            totalShots = myHitsCount + myMissesCount;
+            opponentHitsCount = gameState.player.hits.length;
+        }
+
+        hitPercentage = totalShots > 0 ? Math.round((myHitsCount / totalShots) * 100) : 0;
 
         statsElement.innerHTML = `
-            <p>Your shots: ${myHitsCount + gameState.enemy.misses.length}</p>
+            <p>Your shots: ${totalShots}</p>
             <p>Hits: ${myHitsCount} (${hitPercentage}% accuracy)</p>
             <p>Opponent hits: ${opponentHitsCount}</p>
         `;
     } else {
         // For single player games
         const totalShots = gameState.enemy.hits.length + gameState.enemy.misses.length;
-        const hitPercentage = Math.round((gameState.enemy.hits.length / totalShots) * 100);
+        const hitPercentage = totalShots > 0 ? Math.round((gameState.enemy.hits.length / totalShots) * 100) : 0;
 
         statsElement.innerHTML = `
             <p>Your shots: ${totalShots}</p>
@@ -352,6 +392,11 @@ function showGameOver(playerWon) {
 function createGrids() {
     const playerGrid = document.getElementById('player-grid');
     const enemyGrid = document.getElementById('enemy-grid');
+
+    if (!playerGrid || !enemyGrid) {
+        console.error('Grid elements not found');
+        return;
+    }
 
     // Create player grid (where player ships are placed and enemy fires)
     for (let r = 0; r < GRID_SIZE; r++) {
@@ -382,14 +427,26 @@ function createGrids() {
 // Set up event listeners
 function setupEventListeners() {
     // New game button
-    document.getElementById('new-game-btn').addEventListener('click', () => {
-        window.location.href = '/'; // Redirect to main menu
-    });
+    const newGameBtn = document.getElementById('new-game-btn');
+    if (newGameBtn) {
+        newGameBtn.addEventListener('click', () => {
+            // Clear game session first
+            fetch('/reset_game').then(() => {
+                window.location.href = '/'; // Redirect to main menu
+            });
+        });
+    }
 
     // Play again button
-    document.getElementById('play-again-btn').addEventListener('click', () => {
-        window.location.href = '/';
-    });
+    const playAgainBtn = document.getElementById('play-again-btn');
+    if (playAgainBtn) {
+        playAgainBtn.addEventListener('click', () => {
+            // Clear game session first
+            fetch('/reset_game').then(() => {
+                window.location.href = '/';
+            });
+        });
+    }
 }
 
 // Load player ships from session data
@@ -468,14 +525,14 @@ function loadMultiplayerGame() {
 
 // Start polling for game state updates
 function startPolling() {
+    // Initial poll immediately
+    pollGameState();
+    
     // Poll every 2 seconds
     gameState.pollingInterval = setInterval(pollGameState, 2000);
-
-    // Initial poll
-    pollGameState();
 }
 
-// Poll for game state updates
+// Poll for game state updates with reconnection logic
 function pollGameState() {
     // Show connecting status
     updateConnectionStatus('connecting');
@@ -555,8 +612,16 @@ function pollGameState() {
                     gameStatus.className = 'game-status error';
                 }
 
+                // Instead of clearing the interval, retry with exponential backoff
                 clearInterval(gameState.pollingInterval);
-                showNotification('Connection lost. Please refresh the page.', 10000);
+                const backoffDelay = Math.min(30000, 1000 * Math.pow(2, Math.min(window.pollErrorCount - 5, 5)));
+                showNotification(`Connection lost. Retrying in ${backoffDelay/1000} seconds...`, backoffDelay);
+                
+                // Try to reconnect after backoff delay
+                setTimeout(() => {
+                    pollGameState();
+                    gameState.pollingInterval = setInterval(pollGameState, 2000);
+                }, backoffDelay);
             } else {
                 updateGameStatus('Connection issue. Retrying...');
             }
@@ -578,43 +643,67 @@ function updateMultiplayerGameState(data) {
     }
 
     // Check if opponent is connected
-    if (data.opponent_ready) {
-        document.getElementById('opponent-stats').textContent = `Opponent is connected`;
-    } else {
-        document.getElementById('opponent-stats').textContent = `Waiting for opponent to connect...`;
+    const opponentStats = document.getElementById('opponent-stats');
+    if (opponentStats) {
+        if (data.opponent_ready) {
+            opponentStats.textContent = `Opponent is connected`;
+        } else {
+            opponentStats.textContent = `Waiting for opponent to connect...`;
+        }
+    }
+
+    // Update stats from server data if available
+    if (data.stats) {
+        gameState.stats = {
+            player: data.stats.my_stats,
+            enemy: data.stats.opponent_stats
+        };
     }
 
     // Check for game over
     if (data.game_status === 'game_over') {
         gameState.gameOver = true;
-        clearInterval(gameState.pollingInterval); // Stop polling
+        
+        // Stop polling but keep the last state update
+        if (gameState.pollingInterval) {
+            clearInterval(gameState.pollingInterval);
+            gameState.pollingInterval = null;
+        }
 
         // Determine if player won
         const playerWon = data.winner === gameState.playerNumber;
-        showGameOver(playerWon);
+        
+        // Add a small delay to make sure we get all visual updates before showing game over
+        setTimeout(() => {
+            showGameOver(playerWon);
+        }, 1000);
     }
 
     // Update hits and misses on both boards
     // Make sure hits and misses arrays exist before trying to iterate
     if (Array.isArray(data.my_hits)) {
+        gameState.enemy.hits = data.my_hits;
         data.my_hits.forEach(hit => {
             markCellAsHit('enemy', hit.row, hit.col);
         });
     }
 
     if (Array.isArray(data.my_misses)) {
+        gameState.enemy.misses = data.my_misses;
         data.my_misses.forEach(miss => {
             markCellAsMiss('enemy', miss.row, miss.col);
         });
     }
 
     if (Array.isArray(data.opponent_hits)) {
+        gameState.player.hits = data.opponent_hits;
         data.opponent_hits.forEach(hit => {
             markCellAsHit('player', hit.row, hit.col);
         });
     }
 
     if (Array.isArray(data.opponent_misses)) {
+        gameState.player.misses = data.opponent_misses;
         data.opponent_misses.forEach(miss => {
             markCellAsMiss('player', miss.row, miss.col);
         });
@@ -630,6 +719,8 @@ function updateMultiplayerGameState(data) {
 function clearBoardMarkers() {
     const playerGrid = document.getElementById('player-grid');
     const enemyGrid = document.getElementById('enemy-grid');
+
+    if (!playerGrid || !enemyGrid) return;
 
     // Clear player grid markers
     for (let r = 0; r < GRID_SIZE; r++) {
@@ -651,6 +742,11 @@ function clearBoardMarkers() {
 // Mark a cell as hit
 function markCellAsHit(grid, row, col) {
     const gridElement = document.getElementById(grid + '-grid');
+    if (!gridElement || !gridElement.rows[row] || !gridElement.rows[row].cells[col]) {
+        console.error(`Invalid cell coordinates: ${grid}, ${row}, ${col}`);
+        return;
+    }
+    
     const cell = gridElement.rows[row].cells[col];
     cell.classList.add('hit');
 }
@@ -658,6 +754,11 @@ function markCellAsHit(grid, row, col) {
 // Mark a cell as miss
 function markCellAsMiss(grid, row, col) {
     const gridElement = document.getElementById(grid + '-grid');
+    if (!gridElement || !gridElement.rows[row] || !gridElement.rows[row].cells[col]) {
+        console.error(`Invalid cell coordinates: ${grid}, ${row}, ${col}`);
+        return;
+    }
+    
     const cell = gridElement.rows[row].cells[col];
     cell.classList.add('miss');
 }
@@ -666,14 +767,23 @@ function markCellAsMiss(grid, row, col) {
 function updateMultiplayerStats(myHitsCount, opponentHitsCount) {
     const playerShipsHit = opponentHitsCount;
     const enemyShipsHit = myHitsCount;
+    
+    const playerStats = document.getElementById('player-stats');
+    const opponentStats = document.getElementById('opponent-stats');
 
-    document.getElementById('player-stats').textContent = `Hits taken: ${playerShipsHit}`;
-    document.getElementById('opponent-stats').textContent = `Hits on opponent: ${enemyShipsHit}`;
+    if (playerStats) {
+        playerStats.textContent = `Hits taken: ${playerShipsHit}`;
+    }
+    
+    if (opponentStats) {
+        opponentStats.textContent = `Hits on opponent: ${enemyShipsHit}`;
+    }
 }
 
 // Display player ships on grid
 function displayPlayerShips() {
     const playerGrid = document.getElementById('player-grid');
+    if (!playerGrid) return;
 
     // For each ship type
     Object.entries(gameState.player.ships).forEach(([shipType, coordinates]) => {
@@ -681,10 +791,11 @@ function displayPlayerShips() {
         coordinates.forEach(coord => {
             const row = coord.row;
             const col = coord.col;
-            const cell = playerGrid.rows[row].cells[col];
-
-            cell.classList.add('ship');
-            cell.classList.add(shipType);
+            if (playerGrid.rows[row] && playerGrid.rows[row].cells[col]) {
+                const cell = playerGrid.rows[row].cells[col];
+                cell.classList.add('ship');
+                cell.classList.add(shipType);
+            }
         });
     });
 }
@@ -697,6 +808,11 @@ function handlePlayerShot(row, col) {
     }
 
     const enemyGrid = document.getElementById('enemy-grid');
+    if (!enemyGrid || !enemyGrid.rows[row] || !enemyGrid.rows[row].cells[col]) {
+        console.error(`Invalid shot coordinates: ${row}, ${col}`);
+        return;
+    }
+    
     const cell = enemyGrid.rows[row].cells[col];
 
     // Check if cell has already been targeted
@@ -744,6 +860,10 @@ function handleMultiplayerShot(row, col, cell) {
             // Mark cell based on hit/miss
             if (data.hit) {
                 cell.classList.add('hit');
+                // Update local stats
+                gameState.stats.player.hits = (gameState.stats.player.hits || 0) + 1;
+                gameState.stats.player.shots = (gameState.stats.player.shots || 0) + 1;
+                
                 // Get coordinate name for log
                 const coordName = cell.dataset.coord;
                 addLogEntry(`You fired at ${coordName} - HIT!`, 'player-action');
@@ -751,6 +871,9 @@ function handleMultiplayerShot(row, col, cell) {
                 // Play hit animation
                 cell.classList.add('hit-animation');
                 setTimeout(() => cell.classList.remove('hit-animation'), 500);
+
+                // Track the hit locally
+                gameState.enemy.hits.push({ row, col, shipType: data.ship_type });
 
                 // Check if ship was sunk
                 if (data.sunk) {
@@ -762,15 +885,28 @@ function handleMultiplayerShot(row, col, cell) {
                 }
             } else {
                 cell.classList.add('miss');
+                // Update local stats
+                gameState.stats.player.misses = (gameState.stats.player.misses || 0) + 1;
+                gameState.stats.player.shots = (gameState.stats.player.shots || 0) + 1;
+                
                 // Get coordinate name for log
                 const coordName = cell.dataset.coord;
                 addLogEntry(`You fired at ${coordName} - miss.`, 'player-action');
+                
+                // Track the miss locally
+                gameState.enemy.misses.push({ row, col });
             }
 
             // Check for game over
             if (data.game_over) {
                 gameState.gameOver = true;
                 showGameOver(true);
+                clearInterval(gameState.pollingInterval);
+		// Additional delay to ensure final visual updates
+                setTimeout(() => {
+                    showGameOver(true);
+                }, 1000);
+                
                 clearInterval(gameState.pollingInterval); // Stop polling
             } else {
                 // Switch turns immediately in UI
@@ -860,6 +996,8 @@ function handleEnemyTurn() {
     if (gameState.gameOver) return;
 
     const playerGrid = document.getElementById('player-grid');
+    if (!playerGrid) return;
+    
     let row, col;
 
     // AI targeting logic
@@ -876,9 +1014,11 @@ function handleEnemyTurn() {
             col = Math.floor(Math.random() * GRID_SIZE);
 
             // Check if the cell has already been targeted
-            const cell = playerGrid.rows[row].cells[col];
-            if (!cell.classList.contains('hit') && !cell.classList.contains('miss')) {
-                validTarget = true;
+            if (playerGrid.rows[row] && playerGrid.rows[row].cells[col]) {
+                const cell = playerGrid.rows[row].cells[col];
+                if (!cell.classList.contains('hit') && !cell.classList.contains('miss')) {
+                    validTarget = true;
+                }
             }
         }
     }
@@ -888,6 +1028,12 @@ function handleEnemyTurn() {
 
     // Add a delay to simulate "thinking"
     setTimeout(() => {
+        if (!playerGrid.rows[row] || !playerGrid.rows[row].cells[col]) {
+            console.error(`Invalid AI target: ${row}, ${col}`);
+            handleEnemyTurn(); // Try again
+            return;
+        }
+        
         const cell = playerGrid.rows[row].cells[col];
 
         // Check if the shot is a hit
@@ -954,6 +1100,7 @@ function updateEnemyTargeting(hitRow, hitCol) {
     ];
 
     const playerGrid = document.getElementById('player-grid');
+    if (!playerGrid) return;
 
     potentialTargets.forEach(target => {
         // Check if target is within grid bounds
@@ -961,12 +1108,14 @@ function updateEnemyTargeting(hitRow, hitCol) {
             target.col >= 0 && target.col < GRID_SIZE) {
 
             // Check if this cell has already been attacked
-            const cell = playerGrid.rows[target.row].cells[target.col];
-            if (!cell.classList.contains('hit') && !cell.classList.contains('miss')) {
-                // Add to targeting queue if not already in it
-                if (!gameState.enemy.nextTargets.some(t =>
-                    t.row === target.row && t.col === target.col)) {
-                    gameState.enemy.nextTargets.push(target);
+            if (playerGrid.rows[target.row] && playerGrid.rows[target.row].cells[target.col]) {
+                const cell = playerGrid.rows[target.row].cells[target.col];
+                if (!cell.classList.contains('hit') && !cell.classList.contains('miss')) {
+                    // Add to targeting queue if not already in it
+                    if (!gameState.enemy.nextTargets.some(t =>
+                        t.row === target.row && t.col === target.col)) {
+                        gameState.enemy.nextTargets.push(target);
+                    }
                 }
             }
         }
@@ -989,11 +1138,13 @@ function updateEnemyTargeting(hitRow, hitCol) {
             // Add extended targets in the same direction
             const extendedRow = hitRow + direction;
             if (extendedRow >= 0 && extendedRow < GRID_SIZE) {
-                const extendedCell = playerGrid.rows[extendedRow].cells[hitCol];
-                if (!extendedCell.classList.contains('hit') && !extendedCell.classList.contains('miss')) {
-                    if (!gameState.enemy.nextTargets.some(t =>
-                        t.row === extendedRow && t.col === hitCol)) {
-                        gameState.enemy.nextTargets.unshift({ row: extendedRow, col: hitCol });
+                if (playerGrid.rows[extendedRow] && playerGrid.rows[extendedRow].cells[hitCol]) {
+                    const extendedCell = playerGrid.rows[extendedRow].cells[hitCol];
+                    if (!extendedCell.classList.contains('hit') && !extendedCell.classList.contains('miss')) {
+                        if (!gameState.enemy.nextTargets.some(t =>
+                            t.row === extendedRow && t.col === hitCol)) {
+                            gameState.enemy.nextTargets.unshift({ row: extendedRow, col: hitCol });
+                        }
                     }
                 }
             }
@@ -1010,11 +1161,13 @@ function updateEnemyTargeting(hitRow, hitCol) {
             // Add extended targets in the same direction
             const extendedCol = hitCol + direction;
             if (extendedCol >= 0 && extendedCol < GRID_SIZE) {
-                const extendedCell = playerGrid.rows[hitRow].cells[extendedCol];
-                if (!extendedCell.classList.contains('hit') && !extendedCell.classList.contains('miss')) {
-                    if (!gameState.enemy.nextTargets.some(t =>
-                        t.row === hitRow && t.col === extendedCol)) {
-                        gameState.enemy.nextTargets.unshift({ row: hitRow, col: extendedCol });
+                if (playerGrid.rows[hitRow] && playerGrid.rows[hitRow].cells[extendedCol]) {
+                    const extendedCell = playerGrid.rows[hitRow].cells[extendedCol];
+                    if (!extendedCell.classList.contains('hit') && !extendedCell.classList.contains('miss')) {
+                        if (!gameState.enemy.nextTargets.some(t =>
+                            t.row === hitRow && t.col === extendedCol)) {
+                            gameState.enemy.nextTargets.unshift({ row: hitRow, col: extendedCol });
+                        }
                     }
                 }
             }
