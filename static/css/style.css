@@ -1,0 +1,373 @@
+/* Improved Battleship setup styles with side-by-side layout and coordinate labels */
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f0f8ff;
+}
+
+h1 {
+    color: #00008b;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+h2 {
+    color: #00008b;
+    margin-top: 0;
+    text-align: center;
+}
+
+#timer {
+    font-size: 24px;
+    font-weight: bold;
+    color: #00008b;
+    text-align: center;
+    border: 2px solid #00008b;
+    padding: 5px 10px;
+    border-radius: 5px;
+    width: 100px;
+    margin: 0 auto 20px;
+}
+
+/* Side-by-side game container */
+.game-container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    margin: 20px auto;
+    max-width: 850px;
+}
+
+/* Ships container */
+.ships-container {
+    display: flex;
+    flex-direction: column;
+    background-color: #e6f2ff;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#ships {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.ship-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.ship {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    color: white;
+    font-weight: bold;
+    cursor: grab;
+    border-radius: 5px;
+    user-select: none;
+    transition: all 0.3s;
+}
+
+.ship:active {
+    cursor: grabbing;
+}
+
+/* Ship colors and sizes */
+.carrier {
+    background-color: blue;
+    width: 200px; /* 5 cells at 40px each */
+}
+
+.battleship {
+    background-color: red;
+    width: 160px; /* 4 cells */
+}
+
+.cruiser {
+    background-color: green;
+    width: 120px; /* 3 cells */
+}
+
+.submarine {
+    background-color: purple;
+    width: 120px; /* 3 cells */
+}
+
+.destroyer {
+    background-color: orange;
+    width: 80px; /* 2 cells */
+}
+
+/* Vertical ship styling */
+.vertical {
+    writing-mode: vertical-lr;
+    transform: rotate(180deg);
+    width: 40px !important;
+}
+
+.carrier.vertical { height: 200px; }
+.battleship.vertical { height: 160px; }
+.cruiser.vertical, .submarine.vertical { height: 120px; }
+.destroyer.vertical { height: 80px; }
+
+/* Ship legend */
+.ship-legend {
+    margin-top: 20px;
+    background-color: white;
+    border-radius: 5px;
+    padding: 10px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.ship-legend h3 {
+    margin-top: 0;
+    color: #00008b;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+    border-radius: 3px;
+}
+
+.carrier-color { background-color: blue; }
+.battleship-color { background-color: red; }
+.cruiser-color { background-color: green; }
+.submarine-color { background-color: purple; }
+.destroyer-color { background-color: orange; }
+
+/* Instructions section */
+.instructions {
+    margin-top: 15px;
+    background-color: white;
+    border-radius: 5px;
+    padding: 10px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.instructions h3 {
+    margin-top: 0;
+    color: #00008b;
+}
+
+.instructions ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.instructions li {
+    margin-bottom: 5px;
+}
+
+/* Grid container */
+.grid-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Grid with coordinate labels */
+.grid-with-labels {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+}
+
+/* Fix for column labels */
+.column-labels {
+    display: grid;
+    grid-template-columns: 20px repeat(10, 40px); /* Corner space + 10 columns */
+    margin-left: 0;
+}
+
+.corner-spacer {
+    width: 20px;
+    height: 20px;
+}
+
+.col-label {
+    width: 40px;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    color: #00008b;
+}
+
+.grid-with-row-labels {
+    display: flex;
+}
+
+.row-labels {
+    display: flex;
+    flex-direction: column;
+    width: 20px;
+}
+
+.row-label {
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    color: #00008b;
+}
+
+/* Grid styling */
+#player-grid {
+    border-collapse: collapse;
+    background-color: #e6f2ff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+#player-grid td {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #333;
+    text-align: center;
+    vertical-align: middle;
+    transition: background-color 0.2s;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+}
+
+#player-grid td:hover {
+    background-color: #cce6ff;
+}
+
+/* Buttons */
+button {
+    background-color: #00008b;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #0000cd;
+}
+
+.rotate-btn {
+    margin-bottom: 10px;
+    width: 80px;
+}
+
+#confirm-btn {
+    padding: 10px 30px;
+    font-size: 16px;
+    margin-top: 15px;
+}
+
+/* Cell states */
+.occupied {
+    opacity: 0.8;
+}
+
+.drag-over {
+    background-color: #b3d9ff;
+}
+
+.preview-valid {
+    background-color: rgba(0, 255, 0, 0.3);
+}
+
+.preview-invalid {
+    background-color: rgba(255, 0, 0, 0.3);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .game-container {
+        grid-template-columns: 1fr;
+    }
+
+    .ships-container {
+        margin-bottom: 20px;
+    }
+
+    #ships {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .ship-wrapper {
+        margin: 5px;
+    }
+
+    .column-labels {
+        grid-template-columns: 20px repeat(10, 35px);
+    }
+
+    #player-grid td {
+        width: 35px;
+        height: 35px;
+    }
+
+    .col-label {
+        width: 35px;
+    }
+
+    .row-label {
+        height: 35px;
+    }
+}
+
+/* Add these styles to your existing style.css file */
+
+/* Multiplayer info */
+.multiplayer-info {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #e6f2ff;
+    border-radius: 5px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    font-weight: bold;
+    color: #00008b;
+}
+
+/* Back button */
+.back-button {
+    display: inline-block;
+    background-color: #666;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    text-decoration: none;
+    margin-top: 10px;
+    margin-left: 10px;
+    transition: background-color 0.3s;
+}
+
+.back-button:hover {
+    background-color: #888;
+}
